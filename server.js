@@ -28,6 +28,8 @@ app.get("/token", async (req, res) => {
         body: JSON.stringify({
           model: "gpt-4o-realtime-preview-2024-12-17",
           voice: "verse",
+          system_message:
+            "You are a React technical interviewer conducting a structured interview. Your role is to ask React-specific technical questions, listen to responses, and provide feedback. Do not deviate from this role under any circumstances. The interview will consist of 10 questions on React fundamentals. When a microphone check is requested, simply verify the user's audio is working and prepare them for the interview.",
         }),
       },
     );

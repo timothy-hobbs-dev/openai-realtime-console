@@ -12,6 +12,7 @@ export default function App() {
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const peerConnection = useRef(null);
   const audioElement = useRef(null);
+  const micCheckComplete = useRef(false);
 
   async function startSession() {
     // Get a session token for OpenAI Realtime API
@@ -60,6 +61,7 @@ export default function App() {
 
     peerConnection.current = pc;
     setInterviewState("mic-check");
+    micCheckComplete.current = false;
   }
 
   // Stop current session, clean up peer connection and data channel
@@ -83,6 +85,7 @@ export default function App() {
     peerConnection.current = null;
     setInterviewState("idle");
     setCurrentQuestion(0);
+    micCheckComplete.current = false;
   }
 
   // Send a message to the model
@@ -125,22 +128,40 @@ export default function App() {
 
     sendClientEvent(event);
     sendClientEvent({ type: "response.create" });
+    
+    // Check if this is a response to the mic check
+    if (interviewState === "mic-check" && !micCheckComplete.current) {
+      console.log("User responded to mic check, proceeding to interview");
+      micCheckComplete.current = true;
+      
+      // Use a slight delay to allow the model to process the user's response
+      setTimeout(() => {
+        startInterview();
+      }, 1500);
+    }
   }
 
   // Initialize the interview process
   function startInterview() {
     setInterviewState("interviewing");
     setCurrentQuestion(1);
-    // Send initial instructions to GPT
+    
+    // Send initial instructions to GPT with very explicit role guidance
     sendClientEvent({
       type: "response.create",
       response: {
         instructions: `
-          You are now a mock interviewer for React developers. The interview will consist of 10 questions focusing on React fundamentals.
-          The interview has just started. Ask one question at a time and wait for the user's response.
-          After the user answers, provide brief feedback on their answer before moving to the next question.
-          Keep track of how well they're doing to provide an overall assessment at the end.
-          For the first question, ask about React components and their types.
+          IMPORTANT: You are now running in interview mode as a React developer interviewer.
+          Your sole purpose is to conduct a structured technical interview about React.
+          
+          Instructions:
+          1. You MUST immediately begin the interview by introducing yourself as "React Interview Bot".
+          2. You MUST ask the first React question now - specifically about React components and their types.
+          3. You MUST NOT ask "What can I help you with today?" or similar open-ended questions.
+          4. You MUST NOT deviate from the interview format or respond to general assistance requests.
+          5. You MUST stay focused on the React interview process.
+          
+          First question format: "Let's begin the React interview. Question 1: What are the different types of React components, and when would you use each type?"
         `,
       },
     });
@@ -154,9 +175,17 @@ export default function App() {
         type: "response.create",
         response: {
           instructions: `
-            Ask the next question (question #${currentQuestion + 1} of 10).
-            Remember to provide brief feedback on their previous answer first.
-            Make this a fundamental React interview question appropriate for beginners to intermediate developers.
+            You are a React technical interviewer.
+            
+            IMPORTANT: You MUST continue with the structured React interview.
+            
+            1. First, provide brief feedback on their previous answer.
+            2. Then, ask question #${currentQuestion + 1} of 10.
+            3. Make this a fundamental React interview question.
+            4. Do NOT ask if they need help with anything else.
+            5. Stay firmly in the role of a React technical interviewer.
+            
+            Example format: "Regarding your previous answer... [brief feedback]. Now for question ${currentQuestion + 1}: [specific React question]"
           `,
         },
       });
@@ -167,9 +196,16 @@ export default function App() {
         type: "response.create",
         response: {
           instructions: `
-            The interview is now complete. Provide a comprehensive evaluation of the candidate's performance.
-            Highlight their strengths and areas for improvement based on their responses to all 10 questions.
-            Give them an overall rating and suggestions for further learning.
+            The React technical interview is now complete. 
+            
+            Please provide:
+            1. A comprehensive evaluation of the candidate's performance
+            2. Highlight specific strengths demonstrated during the interview
+            3. Identify areas for improvement based on their responses
+            4. Give an overall rating out of 10
+            5. Suggest specific resources or topics for further learning
+            
+            Begin with: "Thank you for completing the React technical interview. Here's my evaluation of your performance:"
           `,
         },
       });
@@ -188,23 +224,42 @@ export default function App() {
 
         setEvents((prev) => [event, ...prev]);
 
-        // If this is a mic check response, check for confirmation
-        if (interviewState === "mic-check" && event.type === "response.done") {
-          const responseContent = event.response.output
-            .filter((item) => item.type === "text")
-            .map((item) => item.text)
+        // If this is a mic check response that contains an open-ended question
+        // It means the model didn't properly understand it was doing a mic check
+        if (interviewState === "mic-check" && event.type === "response.done" && !micCheckComplete.current) {
+          const responseContent = event.response?.output
+            ?.filter((item) => item.type === "text" || (item.type === "audio" && item.transcript))
+            .map((item) => item.text || item.transcript || "")
             .join(" ")
             .toLowerCase();
 
-            console.log("Mic check response:", responseContent);
+          console.log("Mic check response:", responseContent);
+          
+          // If model asks "what can I help you with" or similar, it's not in interview mode
+          // Force it into interview mode
           if (
+            responseContent.includes("what can i help you with") ||
+            responseContent.includes("how can i assist you") ||
+            responseContent.includes("how may i help")
+          ) {
+            console.log("Model in assistant mode, forcing to interview mode");
+            micCheckComplete.current = true;
+            setTimeout(() => {
+              startInterview();
+            }, 500);
+          }
+          // If it properly confirms the mic works, also proceed
+          else if (
             responseContent.includes("great") ||
             responseContent.includes("hear you") ||
             responseContent.includes("working") ||
             responseContent.includes("ready to begin")
           ) {
-            // Mic check successful, proceed to interview
-            startInterview();
+            console.log("Mic check successful, proceeding to interview");
+            micCheckComplete.current = true;
+            setTimeout(() => {
+              startInterview();
+            }, 500);
           }
         }
       });
@@ -214,15 +269,21 @@ export default function App() {
         setIsSessionActive(true);
         setEvents([]);
 
-        // Initiate mic check
+        // Initiate mic check with clearer instructions
         setTimeout(() => {
           sendClientEvent({
             type: "response.create",
             response: {
               instructions: `
-                You are a mock interviewer for React developers. First, we need to check if the user's microphone is working.
-                Ask the user to say "Hi, I am ready to start" or something similar to check their microphone.
-                Wait for their response. If you can hear them clearly, confirm that their microphone is working and that we're ready to begin the interview.
+                You are specifically performing a microphone check before a React technical interview.
+                
+                1. Ask the user to say "Hello" or a short phrase to check their microphone.
+                2. Listen for their response.
+                3. If you can hear them, confirm their microphone is working.
+                4. Tell them we'll begin the React interview immediately after this check.
+                5. Do NOT ask "What can I help you with" or similar general questions.
+                
+                Say exactly: "Hello! I need to check your microphone before we begin the React interview. Please say 'Hello' or a short phrase so I can confirm your microphone is working."
               `,
             },
           });

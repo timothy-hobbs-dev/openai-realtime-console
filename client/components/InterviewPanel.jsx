@@ -20,7 +20,11 @@ export default function InterviewPanel({ interviewState, currentQuestion, isSess
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center">
             <Icons.Mic size={48} className="text-blue-500 animate-pulse" />
             <h2 className="text-xl font-bold">Microphone Check</h2>
-            <p>Please say "Hi, I am ready to start" to verify your microphone is working</p>
+            <p className="mb-2">Please say "Hello" to verify your microphone is working</p>
+            <div className="bg-yellow-50 p-3 rounded-lg text-sm border border-yellow-200 w-full">
+              <p className="font-medium text-yellow-700">Important:</p>
+              <p className="text-yellow-600">After your microphone is confirmed, the React interview will begin automatically.</p>
+            </div>
           </div>
         );
       case "interviewing":
@@ -48,6 +52,17 @@ export default function InterviewPanel({ interviewState, currentQuestion, isSess
                 <li>Try to provide examples when possible</li>
                 <li>Explain your thought process</li>
                 <li>Ask for clarification if a question is unclear</li>
+              </ul>
+              
+              <h3 className="font-bold mt-4">Common React Topics:</h3>
+              <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+                <li>Components & Props</li>
+                <li>State & Lifecycle</li>
+                <li>Hooks</li>
+                <li>Context API</li>
+                <li>Performance Optimization</li>
+                <li>Error Boundaries</li>
+                <li>Virtual DOM</li>
               </ul>
             </div>
           </div>
