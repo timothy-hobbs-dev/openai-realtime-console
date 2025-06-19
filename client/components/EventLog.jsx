@@ -1,6 +1,6 @@
 import { ArrowUp, ArrowDown, User } from "react-feather";
 import { Monitor } from "react-feather"; // Using Monitor as a replacement for Bot
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 function Event({ event, timestamp }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -80,10 +80,21 @@ function Event({ event, timestamp }) {
 }
 
 export default function EventLog({ events }) {
+  // Use a ref to maintain counter between renders
+  const counterRef = useRef(0);
+  const processedEventIds = useRef(new Set());
   const eventsToDisplay = [];
   let deltaEvents = {};
 
-  events.forEach((event) => {
+  // Reset the processed events set if events list changes length dramatically
+  // This prevents the set from growing indefinitely
+  useEffect(() => {
+    if (events.length === 0) {
+      processedEventIds.current = new Set();
+    }
+  }, [events.length === 0]);
+
+  events.forEach((event, index) => {
     if (event.type.endsWith("delta")) {
       if (deltaEvents[event.type]) {
         // for now just log a single event per render pass
@@ -93,8 +104,27 @@ export default function EventLog({ events }) {
       }
     }
 
+    // Create a truly unique key using a combination of approaches
+    // 1. Use a UUID if available in event_id
+    // 2. Use the index in the array
+    // 3. Use a timestamp if available
+    // 4. Use an incrementing counter
+    let uniqueKey;
+    
+    const eventId = event.event_id || 'unknown';
+    const eventKey = `${eventId}_${event.timestamp || ''}_${index}`;
+    
+    // Check if we've already used this key
+    if (processedEventIds.current.has(eventKey)) {
+      // If duplicate, use the counter to make it unique
+      uniqueKey = `event_${eventId}_${index}_${++counterRef.current}`;
+    } else {
+      uniqueKey = `event_${eventKey}`;
+      processedEventIds.current.add(eventKey);
+    }
+
     eventsToDisplay.push(
-      <Event key={event.event_id} event={event} timestamp={event.timestamp} />,
+      <Event key={uniqueKey} event={event} timestamp={event.timestamp} />,
     );
   });
 

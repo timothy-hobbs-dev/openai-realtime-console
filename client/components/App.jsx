@@ -196,6 +196,7 @@ export default function App() {
             .join(" ")
             .toLowerCase();
 
+            console.log("Mic check response:", responseContent);
           if (
             responseContent.includes("great") ||
             responseContent.includes("hear you") ||
