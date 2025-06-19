@@ -2,12 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import logo from "/assets/openai-logomark.svg";
 import EventLog from "./EventLog";
 import SessionControls from "./SessionControls";
-import ToolPanel from "./ToolPanel";
+import InterviewPanel from "./InterviewPanel";
 
 export default function App() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [events, setEvents] = useState([]);
   const [dataChannel, setDataChannel] = useState(null);
+  const [interviewState, setInterviewState] = useState("idle"); // idle, mic-check, interviewing, completed
+  const [currentQuestion, setCurrentQuestion] = useState(0);
   const peerConnection = useRef(null);
   const audioElement = useRef(null);
 
@@ -57,6 +59,7 @@ export default function App() {
     await pc.setRemoteDescription(answer);
 
     peerConnection.current = pc;
+    setInterviewState("mic-check");
   }
 
   // Stop current session, clean up peer connection and data channel
@@ -65,7 +68,7 @@ export default function App() {
       dataChannel.close();
     }
 
-    peerConnection.current.getSenders().forEach((sender) => {
+    peerConnection.current?.getSenders().forEach((sender) => {
       if (sender.track) {
         sender.track.stop();
       }
@@ -78,6 +81,8 @@ export default function App() {
     setIsSessionActive(false);
     setDataChannel(null);
     peerConnection.current = null;
+    setInterviewState("idle");
+    setCurrentQuestion(0);
   }
 
   // Send a message to the model
@@ -122,6 +127,55 @@ export default function App() {
     sendClientEvent({ type: "response.create" });
   }
 
+  // Initialize the interview process
+  function startInterview() {
+    setInterviewState("interviewing");
+    setCurrentQuestion(1);
+    // Send initial instructions to GPT
+    sendClientEvent({
+      type: "response.create",
+      response: {
+        instructions: `
+          You are now a mock interviewer for React developers. The interview will consist of 10 questions focusing on React fundamentals.
+          The interview has just started. Ask one question at a time and wait for the user's response.
+          After the user answers, provide brief feedback on their answer before moving to the next question.
+          Keep track of how well they're doing to provide an overall assessment at the end.
+          For the first question, ask about React components and their types.
+        `,
+      },
+    });
+  }
+
+  // Proceed to the next interview question
+  function nextQuestion() {
+    if (currentQuestion < 10) {
+      setCurrentQuestion((prevQuestion) => prevQuestion + 1);
+      sendClientEvent({
+        type: "response.create",
+        response: {
+          instructions: `
+            Ask the next question (question #${currentQuestion + 1} of 10).
+            Remember to provide brief feedback on their previous answer first.
+            Make this a fundamental React interview question appropriate for beginners to intermediate developers.
+          `,
+        },
+      });
+    } else {
+      // Interview completed
+      setInterviewState("completed");
+      sendClientEvent({
+        type: "response.create",
+        response: {
+          instructions: `
+            The interview is now complete. Provide a comprehensive evaluation of the candidate's performance.
+            Highlight their strengths and areas for improvement based on their responses to all 10 questions.
+            Give them an overall rating and suggestions for further learning.
+          `,
+        },
+      });
+    }
+  }
+
   // Attach event listeners to the data channel when a new one is created
   useEffect(() => {
     if (dataChannel) {
@@ -133,22 +187,55 @@ export default function App() {
         }
 
         setEvents((prev) => [event, ...prev]);
+
+        // If this is a mic check response, check for confirmation
+        if (interviewState === "mic-check" && event.type === "response.done") {
+          const responseContent = event.response.output
+            .filter((item) => item.type === "text")
+            .map((item) => item.text)
+            .join(" ")
+            .toLowerCase();
+
+          if (
+            responseContent.includes("great") ||
+            responseContent.includes("hear you") ||
+            responseContent.includes("working") ||
+            responseContent.includes("ready to begin")
+          ) {
+            // Mic check successful, proceed to interview
+            startInterview();
+          }
+        }
       });
 
       // Set session active when the data channel is opened
       dataChannel.addEventListener("open", () => {
         setIsSessionActive(true);
         setEvents([]);
+
+        // Initiate mic check
+        setTimeout(() => {
+          sendClientEvent({
+            type: "response.create",
+            response: {
+              instructions: `
+                You are a mock interviewer for React developers. First, we need to check if the user's microphone is working.
+                Ask the user to say "Hi, I am ready to start" or something similar to check their microphone.
+                Wait for their response. If you can hear them clearly, confirm that their microphone is working and that we're ready to begin the interview.
+              `,
+            },
+          });
+        }, 1000);
       });
     }
-  }, [dataChannel]);
+  }, [dataChannel, interviewState]);
 
   return (
     <>
       <nav className="absolute top-0 left-0 right-0 h-16 flex items-center">
         <div className="flex items-center gap-4 w-full m-4 pb-2 border-0 border-b border-solid border-gray-200">
           <img style={{ width: "24px" }} src={logo} />
-          <h1>realtime console</h1>
+          <h1>React Developer Mock Interviewer</h1>
         </div>
       </nav>
       <main className="absolute top-16 left-0 right-0 bottom-0">
@@ -164,14 +251,16 @@ export default function App() {
               sendTextMessage={sendTextMessage}
               events={events}
               isSessionActive={isSessionActive}
+              interviewState={interviewState}
+              currentQuestion={currentQuestion}
+              nextQuestion={nextQuestion}
             />
           </section>
         </section>
         <section className="absolute top-0 w-[380px] right-0 bottom-0 p-4 pt-0 overflow-y-auto">
-          <ToolPanel
-            sendClientEvent={sendClientEvent}
-            sendTextMessage={sendTextMessage}
-            events={events}
+          <InterviewPanel
+            interviewState={interviewState}
+            currentQuestion={currentQuestion}
             isSessionActive={isSessionActive}
           />
         </section>
