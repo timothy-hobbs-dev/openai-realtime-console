@@ -51,20 +51,20 @@ function Event({ event, timestamp }) {
     );
   }
   
-  // Default view for technical events
+  // For technical view, simplify it to be more compact
   return (
-    <div className="flex flex-col gap-2 p-2 rounded-md bg-gray-50 opacity-60 text-xs">
+    <div className="flex flex-col gap-1 p-2 mb-1 rounded-md bg-gray-50 text-xs border border-gray-100">
       <div
         className="flex items-center gap-2 cursor-pointer"
         onClick={() => setIsExpanded(!isExpanded)}
       >
         {isClient ? (
-          <ArrowDown className="text-blue-400" />
+          <ArrowDown className="text-blue-400" size={12} />
         ) : (
-          <ArrowUp className="text-green-400" />
+          <ArrowUp className="text-green-400" size={12} />
         )}
-        <div className="text-gray-500">
-          {isClient ? "client:" : "server:"}
+        <div className="text-gray-500 font-mono">
+          {isClient ? "➡️" : "⬅️"}
           &nbsp;{event.type} | {timestamp}
         </div>
       </div>
@@ -129,11 +129,14 @@ export default function EventLog({ events }) {
   });
 
   return (
-    <div className="flex flex-col gap-2 overflow-x-auto p-4">
+    <div className="flex flex-col gap-1 overflow-x-auto p-4 h-full bg-gray-50 rounded-lg">
+      <div className="sticky top-0 bg-gray-100 p-2 rounded-md mb-2 text-center text-sm font-medium">
+        Event Logs - Technical View
+      </div>
       {events.length === 0 ? (
         <div className="text-center py-10">
-          <div className="text-gray-500 font-medium">Your interview will appear here</div>
-          <div className="text-gray-400 text-sm mt-2">Start the session to begin</div>
+          <div className="text-gray-500 font-medium">No events logged</div>
+          <div className="text-gray-400 text-sm mt-2">Start the session to begin logging events</div>
         </div>
       ) : (
         eventsToDisplay

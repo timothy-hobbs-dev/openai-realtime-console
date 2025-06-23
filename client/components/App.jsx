@@ -3,6 +3,8 @@ import logo from "/assets/openai-logomark.svg";
 import EventLog from "./EventLog";
 import SessionControls from "./SessionControls";
 import InterviewPanel from "./InterviewPanel";
+import ChatInterface from "./ChatInterface";
+import { MessageSquare, Code } from "react-feather";
 
 export default function App() {
   const [isSessionActive, setIsSessionActive] = useState(false);
@@ -10,6 +12,7 @@ export default function App() {
   const [dataChannel, setDataChannel] = useState(null);
   const [interviewState, setInterviewState] = useState("idle"); // idle, mic-check, interviewing, completed
   const [currentQuestion, setCurrentQuestion] = useState(0);
+  const [showLogs, setShowLogs] = useState(false);
   const peerConnection = useRef(null);
   const audioElement = useRef(null);
   const micCheckComplete = useRef(false);
@@ -120,7 +123,7 @@ export default function App() {
         content: [
           {
             type: "input_text",
-            text: message,
+                        text: message,
           },
         ],
       },
@@ -295,15 +298,41 @@ export default function App() {
   return (
     <>
       <nav className="absolute top-0 left-0 right-0 h-16 flex items-center">
-        <div className="flex items-center gap-4 w-full m-4 pb-2 border-0 border-b border-solid border-gray-200">
-          <img style={{ width: "24px" }} src={logo} />
-          <h1>React Developer Mock Interviewer</h1>
+        <div className="flex items-center justify-between w-full m-4 pb-2 border-0 border-b border-solid border-gray-200">
+          <div className="flex items-center gap-4">
+            <img style={{ width: "24px" }} src={logo} />
+            <h1>React Developer Mock Interviewer</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowLogs(!showLogs)} 
+              className={`flex items-center gap-2 px-3 py-1 rounded-md text-sm transition-colors ${
+                showLogs ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'
+              }`}
+            >
+              {showLogs ? (
+                <>
+                  <MessageSquare size={14} />
+                  <span>Show Chat</span>
+                </>
+              ) : (
+                <>
+                  <Code size={14} />
+                  <span>Show Logs</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </nav>
       <main className="absolute top-16 left-0 right-0 bottom-0">
         <section className="absolute top-0 left-0 right-[380px] bottom-0 flex">
           <section className="absolute top-0 left-0 right-0 bottom-32 px-4 overflow-y-auto">
-            <EventLog events={events} />
+            {showLogs ? (
+              <EventLog events={events} />
+            ) : (
+              <ChatInterface events={events} />
+            )}
           </section>
           <section className="absolute h-32 left-0 right-0 bottom-0 p-4">
             <SessionControls

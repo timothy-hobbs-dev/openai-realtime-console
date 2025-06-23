@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CloudLightning, CloudOff, MessageSquare, Mic, ArrowRight } from "react-feather";
+import { CloudLightning, CloudOff, MessageSquare, Mic, ArrowRight, Send } from "react-feather";
 import Button from "./Button";
 
 function SessionStopped({ startSession }) {
@@ -48,8 +48,8 @@ function SessionActive({
           }
         }}
         type="text"
-        placeholder={interviewState === "mic-check" ? "or type your response..." : "type your answer..."}
-        className="border border-gray-200 rounded-full p-4 flex-1"
+        placeholder={interviewState === "mic-check" ? "or type your response..." : "Type your answer..."}
+        className="border border-gray-200 rounded-full p-4 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
@@ -74,10 +74,10 @@ function SessionActive({
                 handleSendClientEvent();
               }
             }}
-            icon={<MessageSquare height={16} />}
+            icon={<Send height={16} />}
             className="bg-blue-500"
           >
-            Answer
+            Send
           </Button>
           <Button 
             onClick={nextQuestion} 
@@ -94,7 +94,7 @@ function SessionActive({
               handleSendClientEvent();
             }
           }}
-          icon={<MessageSquare height={16} />}
+          icon={<Send height={16} />}
           className="bg-blue-500"
         >
           Send
