@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { CloudLightning, CloudOff, MessageSquare } from "react-feather";
+import { CloudLightning, CloudOff, MessageSquare, Mic, ArrowRight, Send } from "react-feather";
 import Button from "./Button";
 
 function SessionStopped({ startSession }) {
@@ -16,16 +16,22 @@ function SessionStopped({ startSession }) {
     <div className="flex items-center justify-center w-full h-full">
       <Button
         onClick={handleStartSession}
-        className={isActivating ? "bg-gray-600" : "bg-red-600"}
+        className={isActivating ? "bg-gray-600" : "bg-blue-600"}
         icon={<CloudLightning height={16} />}
       >
-        {isActivating ? "starting session..." : "start session"}
+        {isActivating ? "starting interview..." : "start interview"}
       </Button>
     </div>
   );
 }
 
-function SessionActive({ stopSession, sendTextMessage }) {
+function SessionActive({ 
+  stopSession, 
+  sendTextMessage, 
+  interviewState,
+  currentQuestion,
+  nextQuestion
+}) {
   const [message, setMessage] = useState("");
 
   function handleSendClientEvent() {
@@ -42,24 +48,61 @@ function SessionActive({ stopSession, sendTextMessage }) {
           }
         }}
         type="text"
-        placeholder="send a text message..."
-        className="border border-gray-200 rounded-full p-4 flex-1"
+        placeholder={interviewState === "mic-check" ? "or type your response..." : "Type your answer..."}
+        className="border border-gray-200 rounded-full p-4 flex-1 focus:outline-none focus:ring-2 focus:ring-blue-400"
         value={message}
         onChange={(e) => setMessage(e.target.value)}
       />
-      <Button
-        onClick={() => {
-          if (message.trim()) {
-            handleSendClientEvent();
-          }
-        }}
-        icon={<MessageSquare height={16} />}
-        className="bg-blue-400"
-      >
-        send text
-      </Button>
-      <Button onClick={stopSession} icon={<CloudOff height={16} />}>
-        disconnect
+      
+      {interviewState === "mic-check" ? (
+        <Button
+          onClick={() => {
+            if (message.trim()) {
+              handleSendClientEvent();
+            }
+          }}
+          icon={<Mic height={16} />}
+          className="bg-blue-500"
+        >
+          Check Mic
+        </Button>
+      ) : interviewState === "interviewing" ? (
+        <>
+          <Button
+            onClick={() => {
+              if (message.trim()) {
+                handleSendClientEvent();
+              }
+            }}
+            icon={<Send height={16} />}
+            className="bg-blue-500"
+          >
+            Send
+          </Button>
+          <Button 
+            onClick={nextQuestion} 
+            icon={<ArrowRight height={16} />}
+            className="bg-green-500"
+          >
+            Next ({currentQuestion}/10)
+          </Button>
+        </>
+      ) : (
+        <Button
+          onClick={() => {
+            if (message.trim()) {
+              handleSendClientEvent();
+            }
+          }}
+          icon={<Send height={16} />}
+          className="bg-blue-500"
+        >
+          Send
+        </Button>
+      )}
+      
+      <Button onClick={stopSession} icon={<CloudOff height={16} />} className="bg-red-500">
+        End Interview
       </Button>
     </div>
   );
@@ -70,8 +113,10 @@ export default function SessionControls({
   stopSession,
   sendClientEvent,
   sendTextMessage,
-  serverEvents,
   isSessionActive,
+  interviewState,
+  currentQuestion,
+  nextQuestion
 }) {
   return (
     <div className="flex gap-4 border-t-2 border-gray-200 h-full rounded-md">
@@ -80,7 +125,9 @@ export default function SessionControls({
           stopSession={stopSession}
           sendClientEvent={sendClientEvent}
           sendTextMessage={sendTextMessage}
-          serverEvents={serverEvents}
+          interviewState={interviewState}
+          currentQuestion={currentQuestion}
+          nextQuestion={nextQuestion}
         />
       ) : (
         <SessionStopped startSession={startSession} />
